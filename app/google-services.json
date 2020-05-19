@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "337684015173",
+    "firebase_url": "https://javamail-276214.firebaseio.com",
+    "project_id": "javamail-276214",
+    "storage_bucket": "javamail-276214.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:337684015173:android:9a960d4740391f99ab9b2c",
+        "android_client_info": {
+          "package_name": "com.example.javamailoauth"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "337684015173-ndh5brqjug9js93cr85e4ukbpffntc36.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.javamailoauth",
+            "certificate_hash": "8cf66371398370039adecbafd9b527295a017b9a"
+          }
+        },
+        {
+          "client_id": "337684015173-26rp9s1m9uodceshhvnu9d9qbq3kjrc1.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA6_wMKm2XQWS0N3OGFAxKi_jjrkdF8B1A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "337684015173-26rp9s1m9uodceshhvnu9d9qbq3kjrc1.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

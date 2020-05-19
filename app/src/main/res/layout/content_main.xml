@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:paddingBottom="@dimen/activity_vertical_margin"
+    android:paddingLeft="@dimen/activity_horizontal_margin"
+    android:paddingRight="@dimen/activity_horizontal_margin"
+    android:paddingTop="@dimen/activity_vertical_margin"
+    app:layout_behavior="@string/appbar_scrolling_view_behavior"
+    tools:showIn="@layout/activity_main">
+
+    <EditText
+        android:id="@+id/to_address"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Recipient"
+        android:inputType="textEmailAddress"/>
+
+    <EditText
+        android:id="@+id/subject"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Enter Subject" />
+
+    <EditText
+        android:id="@+id/body"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="top"
+        android:hint="Enter Message"
+        android:lines="3" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="5dp">
+
+        <EditText
+            android:layout_weight="2"
+            android:id="@+id/attachmentData"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:hint="Attachment"
+            android:clickable="false"
+            android:enabled="false"/>
+
+        <Button
+            android:layout_weight="1"
+            android:id="@+id/attachment"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:hint="BROWSE" />
+    </LinearLayout>
+
+    <Button
+        android:id="@+id/changeAccount"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Change Account" />
+
+</LinearLayout>
