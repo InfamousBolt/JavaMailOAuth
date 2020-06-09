@@ -2,14 +2,21 @@ package com.example.javamailoauth;
 
 import android.Manifest;
 import android.accounts.AccountManager;
+import android.annotation.SuppressLint;
+import android.annotation.TargetApi;
 import android.app.Dialog;
 import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.database.Cursor;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.net.Uri;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import androidx.annotation.NonNull;
@@ -21,6 +28,8 @@ import androidx.appcompat.widget.Toolbar;
 import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
+import android.widget.TextView;
+import android.widget.Toast;
 
 
 import com.example.javamailoauth.helper.InternetDetector;
@@ -44,6 +53,8 @@ import com.google.api.services.gmail.model.Message;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Formatter;
+import java.util.Locale;
 import java.util.Properties;
 
 import javax.activation.DataHandler;
@@ -57,14 +68,14 @@ import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeBodyPart;
 import javax.mail.internet.MimeMessage;
 import javax.mail.internet.MimeMultipart;
-
 import com.example.javamailoauth.helper.InternetDetector;
 import com.example.javamailoauth.helper.Utils;
 
-public class MainActivity extends AppCompatActivity {
-
+public class MainActivity extends AppCompatActivity implements LocationListener {
+    TextView tv_speed;
     FloatingActionButton sendFabButton;
-    EditText edtToAddress, edtSubject, edtMessage, edtAttachmentData;
+    String edtToAddress, edtSubject, edtMessage;
+    EditText edtAttachmentData;
     Toolbar toolbar;
     GoogleAccountCredential mCredential;
     ProgressDialog mProgress;
@@ -85,6 +96,16 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        tv_speed=findViewById(R.id.tv_speed);
+        // check for gps permission
+        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1000);
+        } else {
+            // start program if permission granted
+            doStuff();
+        }
+        this.updateSpeed(null);
 
         init();
 
@@ -122,6 +143,71 @@ public class MainActivity extends AppCompatActivity {
         });
 
     }
+    @Override
+    public void onLocationChanged(Location location) {
+        if(location != null) {
+            CLocation myLocation = new CLocation(location, this.useMetricUnits());
+            this.updateSpeed(myLocation);
+        }
+
+    }
+
+    @Override
+    public void onStatusChanged(String provider, int status, Bundle extras) {
+
+    }
+
+    @Override
+    public void onProviderEnabled(String provider) {
+
+    }
+
+    @Override
+    public void onProviderDisabled(String provider) {
+
+    }
+    @SuppressLint("MissingPermission")
+    private void doStuff() {
+        LocationManager locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
+        if(locationManager != null) {
+            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, this);
+        }
+        Toast.makeText(this, "Waiting for your GPS connection...", Toast.LENGTH_SHORT).show();
+
+    }
+
+    @TargetApi(Build.VERSION_CODES.DONUT)
+    public void updateSpeed(CLocation location) {
+        float  nCurrentSpeed = 0;
+        if(location != null){
+            location.setbUseMetricUnits(this.useMetricUnits());
+            nCurrentSpeed = location.getSpeed();
+        }
+        // add here
+        if(nCurrentSpeed>25){
+            // to modify
+            Toast toast = Toast.makeText(MainActivity.this,"Your Speed is high!",Toast.LENGTH_SHORT);
+            toast.show();
+            new MakeRequestTask(this, mCredential).execute();
+        }
+
+        Formatter fmt = new Formatter(new StringBuilder());
+        fmt.format(Locale.US, "%5.1f", nCurrentSpeed);
+        String strCurrentSpeed = fmt.toString();
+        strCurrentSpeed = strCurrentSpeed.replace(" ","0");
+        if(this.useMetricUnits()){
+            tv_speed.setText(strCurrentSpeed+" km/h");
+        } else {
+            tv_speed.setText(strCurrentSpeed+" miles/h");
+        }
+    }
+
+
+    private boolean useMetricUnits() {
+        return true;
+
+    }
+
 
     private void init() {
         // Initializing Internet Checker
@@ -139,9 +225,9 @@ public class MainActivity extends AppCompatActivity {
         toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         sendFabButton = (FloatingActionButton) findViewById(R.id.fab);
-        edtToAddress = (EditText) findViewById(R.id.to_address);
-        edtSubject = (EditText) findViewById(R.id.subject);
-        edtMessage = (EditText) findViewById(R.id.body);
+        edtToAddress = "agarwalkeshav8399@gmail.com";
+        edtSubject = "test101";
+        edtMessage = "hello application";
         edtAttachmentData = (EditText) findViewById(R.id.attachmentData);
 
     }
@@ -157,11 +243,11 @@ public class MainActivity extends AppCompatActivity {
             chooseAccount(view);
         } else if (!internetDetector.checkMobileInternetConn()) {
             showMessage(view, "No network connection available.");
-        } else if (!Utils.isNotEmpty(edtToAddress)) {
+        } else if (edtToAddress.isEmpty()) {
             showMessage(view, "To address Required");
-        } else if (!Utils.isNotEmpty(edtSubject)) {
+        } else if (edtSubject.isEmpty()) {
             showMessage(view, "Subject Required");
-        } else if (!Utils.isNotEmpty(edtMessage)) {
+        } else if (edtMessage.isEmpty()) {
             showMessage(view, "Message Required");
         } else {
             new MakeRequestTask(this, mCredential).execute();
@@ -212,7 +298,14 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String permissions[], @NonNull int[] grantResults) {
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        if(requestCode==1000){
+            if(grantResults[0] == PackageManager.PERMISSION_GRANTED){
+                doStuff();
+            } else{
+                finish();
+            }
+        }
         switch (requestCode) {
             case Utils.REQUEST_PERMISSION_GET_ACCOUNTS:
                 chooseAccount(sendFabButton);
@@ -309,10 +402,10 @@ public class MainActivity extends AppCompatActivity {
         private String getDataFromApi() throws IOException {
             // getting Values for to Address, from Address, Subject and Body
             String user = "me";
-            String to = Utils.getString(edtToAddress);
+            String to = edtToAddress;
             String from = mCredential.getSelectedAccountName();
-            String subject = Utils.getString(edtSubject);
-            String body = Utils.getString(edtMessage);
+            String subject = edtSubject;
+            String body = edtMessage;
             MimeMessage mimeMessage;
             String response = "";
             try {
@@ -425,6 +518,7 @@ public class MainActivity extends AppCompatActivity {
             }
         }
     }
+
 
 }
 
