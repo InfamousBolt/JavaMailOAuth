@@ -18,13 +18,24 @@ import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Looper;
 import android.provider.MediaStore;
 import androidx.annotation.NonNull;
+
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationCallback;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationResult;
+import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.Task;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.snackbar.Snackbar;
 import androidx.core.app.ActivityCompat;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+
+import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
@@ -72,11 +83,13 @@ import com.example.javamailoauth.helper.InternetDetector;
 import com.example.javamailoauth.helper.Utils;
 
 public class MainActivity extends AppCompatActivity implements LocationListener {
+    int firstMailSent=0;
+    long timeElapsed=0;
+    String strCurrentSpeed;
+    private long pressedTime;
     TextView tv_speed;
     FloatingActionButton sendFabButton;
     String edtToAddress, edtSubject, edtMessage;
-    EditText edtAttachmentData;
-    Toolbar toolbar;
     GoogleAccountCredential mCredential;
     ProgressDialog mProgress;
     private static final String PREF_ACCOUNT_NAME = "accountName";
@@ -89,13 +102,17 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
             GmailScopes.MAIL_GOOGLE_COM
     };
     private InternetDetector internetDetector;
-    private final int SELECT_PHOTO = 1;
-    public String fileName = "";
+    //trying location
+    FusedLocationProviderClient mFusedLocationClient;
+    TextView latitudeTextView, longitTextView;
+    int PERMISSION_ID = 44;
+    String myLat,myLong;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
         tv_speed=findViewById(R.id.tv_speed);
         // check for gps permission
         if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)
@@ -107,40 +124,28 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         }
         this.updateSpeed(null);
 
+
         init();
 
-        findViewById(R.id.attachment).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (Utils.checkPermission(getApplicationContext(), Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
-                    Intent photoPickerIntent = new Intent(Intent.ACTION_PICK);
-                    photoPickerIntent.setType("image/*");
-                    startActivityForResult(photoPickerIntent, SELECT_PHOTO);
-                } else {
-                    ActivityCompat.requestPermissions(MainActivity.this,
-                            new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, SELECT_PHOTO);
-                }
-            }
-        });
+        //MainActivity1
 
-        findViewById(R.id.changeAccount).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (Utils.checkPermission(getApplicationContext(), Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
-                    startActivityForResult(mCredential.newChooseAccountIntent(), Utils.REQUEST_ACCOUNT_PICKER);
-                } else {
-                    ActivityCompat.requestPermissions(MainActivity.this,
-                            new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, SELECT_PHOTO);
-                }
-            }
-        });
+        //MainActivity2
 
         sendFabButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+                mFusedLocationClient = LocationServices.getFusedLocationProviderClient(MainActivity.this);
+                getLastLocation();
+                changeMailParameters(myLat+" "+myLong);
                 getResultsFromApi(view);
             }
         });
+        //trying location1
+        latitudeTextView = findViewById(R.id.latTextView1);
+        longitTextView = findViewById(R.id.lonTextView1);
+        mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+        getLastLocation();
+
 
     }
     @Override
@@ -186,14 +191,19 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         // add here
         if(nCurrentSpeed>25){
             // to modify
-            Toast toast = Toast.makeText(MainActivity.this,"Your Speed is high!",Toast.LENGTH_SHORT);
-            toast.show();
-            new MakeRequestTask(this, mCredential).execute();
+            if(firstMailSent==0 || System.currentTimeMillis()>timeElapsed+300000){
+                Toast toast = Toast.makeText(MainActivity.this,"Your Speed is high!",Toast.LENGTH_SHORT);
+                toast.show();
+                new MakeRequestTask(this, mCredential).execute();
+                firstMailSent=1;
+                timeElapsed=System.currentTimeMillis();
+            }
+
         }
 
         Formatter fmt = new Formatter(new StringBuilder());
         fmt.format(Locale.US, "%5.1f", nCurrentSpeed);
-        String strCurrentSpeed = fmt.toString();
+        strCurrentSpeed = fmt.toString();
         strCurrentSpeed = strCurrentSpeed.replace(" ","0");
         if(this.useMetricUnits()){
             tv_speed.setText(strCurrentSpeed+" km/h");
@@ -222,14 +232,18 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         mProgress = new ProgressDialog(this);
         mProgress.setMessage("Sending...");
 
-        toolbar = (Toolbar) findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
-        sendFabButton = (FloatingActionButton) findViewById(R.id.fab);
-        edtToAddress = "agarwalkeshav8399@gmail.com";
-        edtSubject = "test101";
-        edtMessage = "hello application";
-        edtAttachmentData = (EditText) findViewById(R.id.attachmentData);
 
+        sendFabButton = (FloatingActionButton) findViewById(R.id.fab);
+        SharedPreferences sharedPreferences=getApplicationContext().getSharedPreferences(getString(R.string.app_name), Context.MODE_PRIVATE);
+        String parentEmail=sharedPreferences.getString("email","");
+        edtToAddress = parentEmail;
+        edtSubject = "Ride-Safe Alert!";
+        //edtMessage = "Hello App";
+       //MainActivity3
+
+    }
+    public void changeMailParameters(String str){
+        edtMessage=str;
     }
 
     private void showMessage(View view, String message) {
@@ -302,6 +316,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         if(requestCode==1000){
             if(grantResults[0] == PackageManager.PERMISSION_GRANTED){
                 doStuff();
+                getLastLocation();
             } else{
                 finish();
             }
@@ -310,11 +325,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
             case Utils.REQUEST_PERMISSION_GET_ACCOUNTS:
                 chooseAccount(sendFabButton);
                 break;
-            case SELECT_PHOTO:
-                Intent photoPickerIntent = new Intent(Intent.ACTION_PICK);
-                photoPickerIntent.setType("image/*");
-                startActivityForResult(photoPickerIntent, SELECT_PHOTO);
-                break;
+            //MainActivity4
         }
     }
 
@@ -348,27 +359,11 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
                     getResultsFromApi(sendFabButton);
                 }
                 break;
-            case SELECT_PHOTO:
-                if (resultCode == RESULT_OK) {
-                    final Uri imageUri = data.getData();
-                    fileName = getPathFromURI(imageUri);
-                    edtAttachmentData.setText(fileName);
-                }
+            //MainActivity5
         }
     }
 
-    public String getPathFromURI(Uri contentUri) {
-        String res = null;
-        String[] proj = {MediaStore.Images.Media.DATA};
-        Cursor cursor = getContentResolver().query(contentUri, proj, "", null, "");
-        assert cursor != null;
-        if (cursor.moveToFirst()) {
-            int column_index = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA);
-            res = cursor.getString(column_index);
-        }
-        cursor.close();
-        return res;
-    }
+    //MainActivity6
 
     // Async Task for sending Mail using GMail OAuth
     private class MakeRequestTask extends AsyncTask<Void, Void, String> {
@@ -457,15 +452,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
             textBody.setText(bodyText);
             multipart.addBodyPart(textBody);
 
-            if (!(activity.fileName.equals(""))) {
-                // Create new MimeBodyPart object and set DataHandler object to this object
-                MimeBodyPart attachmentBody = new MimeBodyPart();
-                String filename = activity.fileName; // change accordingly
-                DataSource source = new FileDataSource(filename);
-                attachmentBody.setDataHandler(new DataHandler(source));
-                attachmentBody.setFileName(filename);
-                multipart.addBodyPart(attachmentBody);
-            }
+            //MainActivity7
 
             //Set the multipart object to the message object
             email.setContent(multipart);
@@ -518,7 +505,102 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
             }
         }
     }
+    //trying location2
+    @SuppressLint("MissingPermission")
+    private void getLastLocation(){
+        // check if permissions are given
+        if (checkPermissions()) {
+            // check if location is enabled
+            if (isLocationEnabled()) {
+                // getting last location from FusedLocationClient object
+                mFusedLocationClient.getLastLocation().addOnCompleteListener(
+                        new OnCompleteListener<Location>() {
+                            @Override
+                            public void onComplete(@NonNull Task<Location> task) {
+                                Location location = task.getResult();
+                                if (location == null) {
+                                    requestNewLocationData();
+                                } else {
+                                    latitudeTextView.setText(location.getLatitude()+"");
+                                    myLat=String.valueOf(location.getLatitude());
+                                    longitTextView.setText(location.getLongitude()+"");
+                                    myLong=String.valueOf(location.getLongitude());
+                                }
+                            }
+                        }
+                );
+            } else {
+                Toast.makeText(this, "Please turn on your location...", Toast.LENGTH_LONG).show();
+                Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+                startActivity(intent);
+            }
+        } else {
+            // if permissions aren't available, request for permissions
+            requestPermissions();
+        }
+    }
+    @SuppressLint("MissingPermission")
+    private void requestNewLocationData(){
+        // Initializing LocationRequest object with appropriate methods
+        LocationRequest mLocationRequest = new LocationRequest();
+        mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        mLocationRequest.setInterval(5);
+        mLocationRequest.setFastestInterval(0);
+        mLocationRequest.setNumUpdates(1);
+        // setting LocationRequest on FusedLocationClient
+        mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+        mFusedLocationClient.requestLocationUpdates(
+                mLocationRequest, mLocationCallback,
+                Looper.myLooper()
+        );
 
+    }
+    private LocationCallback mLocationCallback = new LocationCallback() {
+        @Override
+        public void onLocationResult(LocationResult locationResult) {
+            Location mLastLocation = locationResult.getLastLocation();
+            latitudeTextView.setText("Latitude: "+mLastLocation.getLatitude()+"");
+            longitTextView.setText("Longitude: "+mLastLocation.getLongitude()+"");
+        }
+    };
+    private boolean checkPermissions() {
+        return ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED &&
+                ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+        // if we want background location on Android 10.0 and higher,use:
+        //ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED
+    }
+    private void requestPermissions() {
+        ActivityCompat.requestPermissions(
+                this,
+                new String[]{Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION},
+                PERMISSION_ID
+        );
+    }
+    private boolean isLocationEnabled() {
+        LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) || locationManager.isProviderEnabled(
+                LocationManager.NETWORK_PROVIDER
+        );
+    }
+    @Override
+    public void onResume(){
+        super.onResume();
+        if (checkPermissions()) {
+            getLastLocation();
+        }
 
+    }
+
+    @Override
+    public void onBackPressed() {
+
+        if(pressedTime+2000>System.currentTimeMillis()){
+            super.onBackPressed();
+            finish();
+        }else {
+            Toast.makeText(getBaseContext(),"Press back again to exit",Toast.LENGTH_SHORT).show();
+        }
+        pressedTime=System.currentTimeMillis();
+    }
 }
 
